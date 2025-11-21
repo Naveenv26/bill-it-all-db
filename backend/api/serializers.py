@@ -4,7 +4,7 @@ import re
 from django.contrib.auth import get_user_model 
 from django.db import transaction , models
 from rest_framework import serializers
-from .models import SubscriptionPlan, UserSubscription, Payment, Expense
+from .models import Feedback, SubscriptionPlan, UserSubscription, Payment, Expense
 from shops.models import TaxProfile
 from django.db.models import F
 from catalog.models import Product
@@ -331,3 +331,9 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'vendor_name', 'created_by', 'created_by_name', 'created_at'
         ]
         read_only_fields = ['created_by', 'created_at']
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ['id', 'rating', 'message', 'created_at']
+        read_only_fields = ['id', 'created_at']

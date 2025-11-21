@@ -1,7 +1,29 @@
 import React, { useState } from "react";
+import axios from "../../api/axios";
+import { toast } from "react-hot-toast";
 
 export default function FeedbackSettings() {
   const [rating, setRating] = useState(0);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (rating === 0) return toast.error("Please select a rating");
+    if (!message.trim()) return toast.error("Please write a message");
+
+    setLoading(true);
+    try {
+        await axios.post("/feedback/", { rating, message });
+        toast.success("Thank you for your feedback!");
+        setRating(0);
+        setMessage("");
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to submit feedback");
+    } finally {
+        setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center max-w-2xl mx-auto">
@@ -24,12 +46,18 @@ export default function FeedbackSettings() {
         </div>
 
         <textarea 
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             className="w-full border-slate-200 rounded-xl p-4 bg-slate-50 focus:ring-sky-400 min-h-[120px] mb-4"
             placeholder="Tell us what you think..."
         ></textarea>
 
-        <button className="bg-slate-900 text-white px-8 py-3 rounded-xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 w-full font-bold">
-            Submit Feedback
+        <button 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-slate-900 text-white px-8 py-3 rounded-xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 w-full font-bold disabled:opacity-70"
+        >
+            {loading ? "Submitting..." : "Submit Feedback"}
         </button>
     </div>
   );

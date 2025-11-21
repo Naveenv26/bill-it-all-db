@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=50)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -21,8 +22,18 @@ class Shop(models.Model):
     counter_invoice = models.PositiveIntegerField(default=0)
 
     # --- NEW: Field for Premium WhatsApp feature ---
-    whatsapp_number = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., +919876543210")
+    whatsapp_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="e.g., +919876543210",
+    )
     # ----------------------------------------------
+
+    # --- NEW: Universal Settings Store ---
+    # Stores: invoice_prefix, paper_size, low_stock_limit, tax_enabled, etc.
+    config = models.JSONField(default=dict, blank=True)
+    # -------------------------------------
 
     active_subscription = models.ForeignKey(
         SubscriptionPlan,

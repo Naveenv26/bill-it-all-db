@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "../api/axios";
+import { toast } from "react-hot-toast";
 
 // --- Sub-Components ---
 import ProfileSettings from "./settings/ProfileSettings";
@@ -12,7 +13,6 @@ import CustomerSettings from "./settings/CustomerSettings";
 import FeedbackSettings from "./settings/FeedbackSettings";
 
 // --- ICONS ---
-// Simple consistent icons for the list
 const Icons = {
   Profile: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
   Invoice: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
@@ -27,40 +27,101 @@ const Icons = {
 };
 
 export default function Settings() {
-  // On mobile, 'activeTab' is null initially (showing the list).
-  // On desktop, 'activeTab' defaults to 'profile'.
+  // On mobile, 'activeTab' is null initially. On desktop, default to 'profile'.
   const [activeTab, setActiveTab] = useState(null);
   const [shopData, setShopData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Detect screen size changes
+  // --- 1. Fetch Data Logic ---
+  const fetchShopData = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get("/me/");
+      setShopData(res.data.shop);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load settings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchShopData();
+  }, []);
+
+  // --- 2. Resize Logic ---
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      // If switching to desktop and no tab selected, select profile
       if (!mobile && !activeTab) setActiveTab("profile");
     };
-    
-    // Initial check
     handleResize();
-    
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [activeTab]);
 
-  // Fetch Data
-  useEffect(() => {
-    const fetchShop = async () => {
-      try {
-        const res = await axios.get("/me/");
-        setShopData(res.data.shop);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchShop();
-  }, []);
+  // --- 3. The Missing Update Function ---
+  const updateSettings = async (newConfigOrData) => {
+    if (!shopData) return;
+
+    // Merge existing config with new updates
+    // "config" is a JSON field in your backend Shop model
+    const currentConfig = shopData.config || {};
+    const updatedConfig = { ...currentConfig, ...newConfigOrData };
+
+    try {
+      await axios.patch(`/shops/${shopData.id}/`, {
+         config: updatedConfig
+      });
+      
+      // Optimistically update local state
+      setShopData({ ...shopData, config: updatedConfig });
+      toast.success("Settings saved!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save settings.");
+    }
+  };
+
+  // --- 4. Render Content (Passing the Props!) ---
+  const renderContent = () => {
+    if (loading && !shopData) return <div className="p-10 text-center">Loading settings...</div>;
+    
+    // Safely access config
+    const config = shopData?.config || {};
+
+    switch (activeTab) {
+      case "profile": 
+        return <ProfileSettings shop={shopData} />;
+        
+      case "invoice": 
+        return <InvoiceSettings settings={config.invoice || {}} onUpdate={(d) => updateSettings({ invoice: { ...config.invoice, ...d } })} />;
+        
+      case "inventory": 
+        return <InventorySettings settings={config.inventory || {}} onUpdate={(d) => updateSettings({ inventory: { ...config.inventory, ...d } })} />;
+        
+      case "users": 
+        return <UserSettings />; // Manages its own API calls
+        
+      case "tax": 
+        return <TaxSettings settings={config.tax || {}} onUpdate={(d) => updateSettings({ tax: { ...config.tax, ...d } })} />;
+        
+      case "reports": 
+        return <NotificationSettings settings={config.notifications || {}} onUpdate={(d) => updateSettings({ notifications: { ...config.notifications, ...d } })} />;
+        
+      case "customers": 
+        return <CustomerSettings settings={config.customer || {}} onUpdate={(d) => updateSettings({ customer: { ...config.customer, ...d } })} />;
+        
+      case "feedback": 
+        return <FeedbackSettings />;
+        
+      default: 
+        return null;
+    }
+  };
 
   const tabs = [
     { id: "profile", label: "Shop Profile", desc: "Name, Address, Logo", icon: <Icons.Profile /> },
@@ -73,58 +134,44 @@ export default function Settings() {
     { id: "feedback", label: "Feedback", desc: "Rate us", icon: <Icons.Feedback /> },
   ];
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "profile": return <ProfileSettings shop={shopData} />;
-      case "invoice": return <InvoiceSettings shop={shopData} />;
-      case "inventory": return <InventorySettings />;
-      case "users": return <UserSettings />;
-      case "tax": return <TaxSettings />;
-      case "reports": return <NotificationSettings />;
-      case "customers": return <CustomerSettings />;
-      case "feedback": return <FeedbackSettings />;
-      default: return null;
-    }
-  };
-
-  // --- MOBILE VIEW LOGIC ---
-  if (isMobile) {
-    // VIEW 1: SETTINGS LIST (Main Menu)
-    if (!activeTab) {
-      return (
-        <div className="min-h-screen bg-slate-50">
-          <div className="bg-white px-4 py-4 border-b border-slate-200 sticky top-0 z-10">
-            <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-          </div>
-          <div className="divide-y divide-slate-100 bg-white mt-2 border-t border-b border-slate-200">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="text-slate-500">{tab.icon}</div>
-                  <div>
-                    <div className="text-base font-medium text-slate-900">{tab.label}</div>
-                    <div className="text-xs text-slate-500">{tab.desc}</div>
-                  </div>
-                </div>
-                <Icons.ChevronRight />
-              </button>
-            ))}
-          </div>
-          <div className="p-4 text-center text-xs text-slate-400 mt-4">
-            Version 1.0.0 • Build 2025
-          </div>
+  // --- 5. Render View (Mobile/Desktop) ---
+  
+  // Mobile List View
+  if (isMobile && !activeTab) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="bg-white px-4 py-4 border-b border-slate-200 sticky top-0 z-10">
+          <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         </div>
-      );
-    }
+        <div className="divide-y divide-slate-100 bg-white mt-2 border-t border-b border-slate-200">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="text-slate-500">{tab.icon}</div>
+                <div>
+                  <div className="text-base font-medium text-slate-900">{tab.label}</div>
+                  <div className="text-xs text-slate-500">{tab.desc}</div>
+                </div>
+              </div>
+              <Icons.ChevronRight />
+            </button>
+          ))}
+        </div>
+        <div className="p-4 text-center text-xs text-slate-400 mt-4">
+          Version 1.0.0 • Build 2025
+        </div>
+      </div>
+    );
+  }
 
-    // VIEW 2: CONTENT DETAIL (Specific Setting)
+  // Mobile Detail View
+  if (isMobile && activeTab) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
-        {/* Mobile Header with Back Button */}
         <div className="bg-white px-4 py-3 border-b border-slate-200 sticky top-0 z-20 flex items-center gap-3 shadow-sm">
           <button 
             onClick={() => setActiveTab(null)} 
@@ -136,8 +183,6 @@ export default function Settings() {
             {tabs.find(t => t.id === activeTab)?.label}
           </h2>
         </div>
-        
-        {/* Content Body */}
         <div className="flex-1 p-4 overflow-y-auto">
           {renderContent()}
         </div>
@@ -145,10 +190,9 @@ export default function Settings() {
     );
   }
 
-  // --- DESKTOP VIEW LOGIC (Side-by-Side) ---
+  // Desktop View
   return (
     <div className="flex h-[calc(100vh-64px)] bg-slate-50 font-sans text-slate-800">
-      {/* Sidebar */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 overflow-y-auto">
         <div className="p-6 border-b border-slate-100">
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Settings</h2>
@@ -175,16 +219,12 @@ export default function Settings() {
           ))}
         </nav>
       </aside>
-
-      {/* Content Area */}
       <main className="flex-1 overflow-y-auto p-10">
         <div className="max-w-3xl mx-auto">
             <div className="mb-8 pb-4 border-b border-slate-200">
                 <h1 className="text-3xl font-bold text-slate-900">{tabs.find(t => t.id === activeTab)?.label}</h1>
                 <p className="text-slate-500 mt-1">{tabs.find(t => t.id === activeTab)?.desc}</p>
             </div>
-            
-            {/* Render the selected component */}
             {renderContent()}
         </div>
       </main>
