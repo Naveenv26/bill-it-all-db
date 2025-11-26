@@ -158,17 +158,25 @@ RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
 # =======================================
 # CORS & CSRF
 # =======================================
+# backend/core/settings.py
+
 CORS_ALLOW_CREDENTIALS = True
 
-# 1. Always allow localhost for development
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "http://localhost:5173",       # Local Web Dev
+    "http://127.0.0.1:5173",       # Local Web Dev (alternate)
+    "http://localhost",            # Android App (Capacitor)
+    "https://localhost",           # Android App (Capacitor - Secure)
+    "capacitor://localhost",       # iOS App (Capacitor)
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost",
+    "https://localhost",
+    "capacitor://localhost",
+    "https://bill-it-all-db.onrender.com", # Your Backend
 ]
 
 # 2. Add the production URL if it exists in the environment
