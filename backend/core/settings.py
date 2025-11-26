@@ -153,28 +153,34 @@ MEDIA_ROOT = BASE_DIR / 'media' # Optional: Good to define this too
 RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='')
 RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
 
+# backend/core/settings.py
+
 # =======================================
 # CORS & CSRF
 # =======================================
-# backend/core/settings.py
+CORS_ALLOW_CREDENTIALS = True
 
-# 1. Define the list of local origins you always want to trust
-LOCAL_ORIGINS = [
+# 1. Always allow localhost for development
+CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
-# 2. Get the production URL from env (if set)
-PROD_URL = env('FRONTEND_URL', default=None)
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
-# 3. Combine them
-CORS_ALLOWED_ORIGINS = list(LOCAL_ORIGINS)
-if PROD_URL:
-    CORS_ALLOWED_ORIGINS.append(PROD_URL)
+# 2. Add the production URL if it exists in the environment
+production_url = env('FRONTEND_URL', default=None)
+if production_url:
+    CORS_ALLOWED_ORIGINS.append(production_url)
+    CSRF_TRUSTED_ORIGINS.append(production_url)
 
-CSRF_TRUSTED_ORIGINS = list(LOCAL_ORIGINS)
-if PROD_URL:
-    CSRF_TRUSTED_ORIGINS.append(PROD_URL)
+# 3. Add the specific Render backend domain to trusted origins (sometimes needed for health checks/admin)
+CSRF_TRUSTED_ORIGINS.append("https://bill-it-all-db.onrender.com")
+
+
 # =======================================
 # Security Headers
 # =======================================
