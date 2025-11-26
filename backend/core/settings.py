@@ -156,15 +156,25 @@ RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
 # =======================================
 # CORS & CSRF
 # =======================================
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    env('FRONTEND_URL', default='http://localhost:5173'),
-]
-CSRF_TRUSTED_ORIGINS = [
-    env('FRONTEND_URL', default='http://localhost:5173'),
-    'http://127.0.0.1:5173',
+# backend/core/settings.py
+
+# 1. Define the list of local origins you always want to trust
+LOCAL_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
+# 2. Get the production URL from env (if set)
+PROD_URL = env('FRONTEND_URL', default=None)
+
+# 3. Combine them
+CORS_ALLOWED_ORIGINS = list(LOCAL_ORIGINS)
+if PROD_URL:
+    CORS_ALLOWED_ORIGINS.append(PROD_URL)
+
+CSRF_TRUSTED_ORIGINS = list(LOCAL_ORIGINS)
+if PROD_URL:
+    CSRF_TRUSTED_ORIGINS.append(PROD_URL)
 # =======================================
 # Security Headers
 # =======================================
